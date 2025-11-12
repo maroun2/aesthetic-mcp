@@ -5,16 +5,16 @@ An MCP (Model Context Protocol) server that provides image aesthetic scoring usi
 ## Features
 
 - **7 Aesthetic Dimensions**: Analyzes images across multiple quality metrics
-  - Overall Aesthetic Score
-  - Technical Quality
-  - Composition
-  - Lighting
-  - Color Harmony
-  - Depth of Field
-  - Content Score
+  - Overall Aesthetic Score - General visual appeal
+  - Technical Quality - Image sharpness, noise, artifacts
+  - Composition - Rule of thirds, balance, framing
+  - Lighting - Exposure, shadows, highlights
+  - Color Harmony - Color balance and palette
+  - Depth of Field - Focus and bokeh quality
+  - Content Score - Subject matter and interest
 - **Flexible Input**: Score images from file paths or base64-encoded data
 - **CLIP-based**: Built on OpenAI's CLIP ViT-B/32 visual encoder
-- **0-5 Scale**: All scores normalized to an intuitive 0-5 range
+- **0-5 Scale**: All scores normalized to an intuitive 0-5 range (0 = poor, 5 = excellent)
 
 ## Installation
 
@@ -27,10 +27,11 @@ An MCP (Model Context Protocol) server that provides image aesthetic scoring usi
 
 ```bash
 # Clone the repository
+git clone https://github.com/maroun2/aesthetic-mcp.git
 cd aesthetic-mcp
 
 # Create a virtual environment (recommended)
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
@@ -65,14 +66,15 @@ python src/aesthetic_scorer_mcp/server.py
 
 Add this to your Claude Desktop MCP settings configuration file:
 
-**On macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**On Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "aesthetic-scorer": {
-      "command": "python",
+      "command": "/path/to/aesthetic-mcp/venv/bin/python",
       "args": ["-m", "aesthetic_scorer_mcp.server"],
       "cwd": "/path/to/aesthetic-mcp",
       "env": {
@@ -83,19 +85,9 @@ Add this to your Claude Desktop MCP settings configuration file:
 }
 ```
 
-Or if using a virtual environment:
+Replace `/path/to/aesthetic-mcp` with your actual installation path.
 
-```json
-{
-  "mcpServers": {
-    "aesthetic-scorer": {
-      "command": "/path/to/aesthetic-mcp/venv/bin/python",
-      "args": ["-m", "aesthetic_scorer_mcp.server"],
-      "cwd": "/path/to/aesthetic-mcp"
-    }
-  }
-}
-```
+After configuration, restart Claude Desktop to load the MCP server.
 
 ### Available Tools
 
@@ -140,6 +132,38 @@ Score an image from base64-encoded data.
 }
 ```
 
+## Using with Claude Desktop
+
+Once configured, you can ask Claude to analyze images:
+
+**Score a single image:**
+```
+Can you score the aesthetic quality of /path/to/my/image.jpg?
+```
+
+**Compare multiple images:**
+```
+Compare the aesthetic scores of image1.jpg and image2.jpg
+```
+
+**Analyze specific dimensions:**
+```
+What's the composition score for this photo?
+```
+
+## Command Line Usage
+
+You can also use the scorer directly in Python:
+
+```python
+from aesthetic_scorer_mcp.server import score_image
+
+# Score an image
+scores = score_image('my_photo.jpg')
+print(scores)
+# Output: {'aesthetic': 4.23, 'quality': 4.56, 'composition': 3.89, ...}
+```
+
 ## Model Details
 
 - **Base Model**: CLIP ViT-B/32 (Visual Transformer)
@@ -165,12 +189,6 @@ aesthetic-mcp/
 └── .gitignore
 ```
 
-### Running Tests
-
-```bash
-pytest tests/
-```
-
 ## Technical Notes
 
 ### GPU Support
@@ -184,6 +202,18 @@ The server automatically detects and uses CUDA if available. For CPU-only infere
 - **First run**: Model download and initialization (~350MB)
 - **Subsequent runs**: Fast inference (milliseconds per image on GPU)
 - **Memory**: ~1GB RAM/VRAM for model weights
+
+## Improving Accuracy
+
+Currently using the base CLIP model. For better results with fine-tuned weights:
+
+1. Download the fine-tuned model:
+   ```bash
+   cd aesthetic-mcp
+   wget https://huggingface.co/rsinema/aesthetic-scorer/resolve/main/model.pt
+   ```
+
+2. The model will automatically be loaded if `model.pt` is present in the project root
 
 ## License
 

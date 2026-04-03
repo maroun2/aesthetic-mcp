@@ -11,6 +11,7 @@ from transformers import CLIPProcessor, CLIPVisionModel
 from PIL import Image
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent
+from huggingface_hub import hf_hub_download
 
 from .model import AestheticScorer
 
@@ -35,22 +36,35 @@ def load_model():
     logger.info(f"Using device: {device}")
 
     try:
-        # Load CLIP processor and vision model
-        processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        backbone = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
+        # Load CLIP processor from rsinema repo
+        processor = CLIPProcessor.from_pretrained("rsinema/aesthetic-scorer")
 
-        # Load the aesthetic scorer
+        # Download and load the fine-tuned model weights from Hugging Face
+        logger.info("Downloading fine-tuned model from HuggingFace...")
+        model_path = hf_hub_download(
+            repo_id="rsinema/aesthetic-scorer",
+            filename="model.pt"
+        )
+        logger.info(f"Loading fine-tuned model from {model_path}")
+
+        # Load the state dict
+        state_dict = torch.load(model_path, map_location=device, weights_only=False)
+
+        # The saved model uses CLIPVisionModel directly, so we need to match that structure
+        # Load backbone model matching the saved structure
+        from transformers.models.clip.modeling_clip import CLIPVisionTransformer, CLIPVisionConfig
+        config = CLIPVisionConfig.from_pretrained("openai/clip-vit-base-patch32")
+        backbone = CLIPVisionTransformer(config)
+
+        # Create AestheticScorer with this backbone
         model = AestheticScorer(backbone)
 
-        # Try to load fine-tuned weights from Hugging Face
-        # For now, we'll use the base model structure
-        # Users can download model.pt separately and load it
-        logger.warning("Using base CLIP model. Download model.pt from https://huggingface.co/rsinema/aesthetic-scorer for fine-tuned weights")
-
+        # Load the state dict
+        model.load_state_dict(state_dict)
         model = model.to(device)
         model.eval()
 
-        logger.info("Model loaded successfully")
+        logger.info("Fine-tuned model loaded successfully")
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
         raise
@@ -238,9 +252,7 @@ async def main():
     """Run the server."""
     from mcp.server.stdio import stdio_server
 
-    # Pre-load the model
-    load_model()
-
+    # Model will be loaded lazily on first use
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,

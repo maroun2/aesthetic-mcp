@@ -34,10 +34,7 @@ cd aesthetic-mcp
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Or install as a package
+# Install the package in editable mode (required)
 pip install -e .
 ```
 
@@ -52,15 +49,17 @@ The server works with the base CLIP model out of the box. For better results wit
 
 ### Running the Server
 
+After installing the package with `pip install -e .`, run:
+
 ```bash
+# Activate your virtual environment first
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Start the server
 python -m aesthetic_scorer_mcp.server
 ```
 
-Or run directly:
-
-```bash
-python src/aesthetic_scorer_mcp/server.py
-```
+The server will wait for JSON-RPC messages over stdio (standard input/output).
 
 ### Configuring with Claude Desktop
 
@@ -75,17 +74,15 @@ Add this to your Claude Desktop MCP settings configuration file:
   "mcpServers": {
     "aesthetic-scorer": {
       "command": "/path/to/aesthetic-mcp/venv/bin/python",
-      "args": ["-m", "aesthetic_scorer_mcp.server"],
-      "cwd": "/path/to/aesthetic-mcp",
-      "env": {
-        "PYTHONPATH": "/path/to/aesthetic-mcp/src"
-      }
+      "args": ["-m", "aesthetic_scorer_mcp.server"]
     }
   }
 }
 ```
 
-Replace `/path/to/aesthetic-mcp` with your actual installation path.
+Replace `/path/to/aesthetic-mcp/venv/bin/python` with your actual virtual environment Python path.
+
+**Note**: Ensure you've installed the package with `pip install -e .` in your virtual environment before configuring Claude Desktop.
 
 After configuration, restart Claude Desktop to load the MCP server.
 
@@ -150,6 +147,42 @@ Compare the aesthetic scores of image1.jpg and image2.jpg
 ```
 What's the composition score for this photo?
 ```
+
+## Testing the Server
+
+### Quick Test with Echo Technique
+
+You can test the MCP server using the echo technique before integrating it with Claude Desktop. Make sure you have:
+1. Activated your virtual environment
+2. Installed the package with `pip install -e .`
+
+**List available tools:**
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | python3 -m aesthetic_scorer_mcp.server
+```
+
+**Score an image:**
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"score_image","arguments":{"image_path":"/absolute/path/to/your/image.jpg"}}}' | python3 -m aesthetic_scorer_mcp.server
+```
+
+**Important notes:**
+- Use absolute paths for image files (e.g., `/home/user/pictures/photo.jpg`)
+- Each echo command starts a fresh server instance and loads the model (takes a few seconds)
+- The server will output logs to stderr and JSON-RPC responses to stdout
+- Model loading messages (INFO logs) are normal and indicate the server is starting
+
+### Example with Real Image
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Test with your image (replace with actual path)
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"score_image","arguments":{"image_path":"/home/user/photos/landscape.jpg"}}}' | python -m aesthetic_scorer_mcp.server 2>/dev/null | jq
+```
+
+The `2>/dev/null` suppresses model loading logs, and `jq` formats the JSON output (install with `apt install jq` or `brew install jq`).
 
 ## Command Line Usage
 
@@ -241,7 +274,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 - Use CPU instead of GPU for inference
 - Close other applications to free up memory
 
-### Import errors
-- Ensure PYTHONPATH includes the `src` directory
+### Import errors or "Module not found" errors
+- Ensure you've installed the package: `pip install -e .`
 - Verify virtual environment is activated
-- Reinstall dependencies: `pip install -r requirements.txt --force-reinstall`
+- Reinstall the package: `pip install -e . --force-reinstall`
